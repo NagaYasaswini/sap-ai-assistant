@@ -1,0 +1,37 @@
+_schema-version: "3.1"
+ID: sap-ai-assistant
+version: 1.0.0
+
+modules:
+  - name: sap-ai-assistant-srv
+    type: nodejs
+    path: .
+    parameters:
+      buildpack: nodejs_buildpack
+      memory: 256M
+      disk-quota: 512M
+    build-parameters:
+      builder: npm
+      build-result: .
+      ignore:
+        - node_modules/
+        - .env
+    properties:
+      NODE_ENV: production
+    requires:
+      - name: sap-ai-assistant-hdi
+      - name: sap-ai-assistant-xsuaa
+
+resources:
+  - name: sap-ai-assistant-hdi
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: hana
+      service-plan: hdi-shared
+      service-name: sap-ai-assistant-hdi
+  - name: sap-ai-assistant-xsuaa
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      service-name: sap-ai-assistant-xsuaa
