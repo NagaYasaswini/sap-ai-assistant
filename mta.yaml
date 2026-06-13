@@ -16,6 +16,7 @@ modules:
       ignore:
         - node_modules/
         - .env
+      npm-install-before-build: false
     properties:
       NODE_ENV: production
     requires:
