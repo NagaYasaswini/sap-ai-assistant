@@ -12,7 +12,8 @@
     "dotenv": "^17.4.2",
     "express": "^4",
     "hdb": "^0.19",
-    "openai": "^6.42.0"
+    "openai": "^6.42.0",
+    "pdf-parse": "^2.4.5"
   },
   "devDependencies": {
     "@cap-js/sqlite": "^1"

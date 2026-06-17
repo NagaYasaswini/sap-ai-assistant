@@ -14,3 +14,11 @@ entity ChatHistory {
     askedAt      : DateTime;
     documentID   : UUID;
 }
+
+entity DocumentChunks {
+    key ID          : UUID;
+    documentID      : UUID;
+    chunkText       : LargeString;
+    chunkIndex      : Integer;
+    embedding       : LargeString;
+}
