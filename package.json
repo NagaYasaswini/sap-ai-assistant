@@ -13,10 +13,11 @@
     "express": "^4",
     "hdb": "^0.19",
     "openai": "^6.42.0",
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^2.4.5",
+    "@cap-js/sqlite": "^1"
   },
   "devDependencies": {
-    "@cap-js/sqlite": "^1"
+   
   },
   "scripts": {
     "start": "cds-serve",

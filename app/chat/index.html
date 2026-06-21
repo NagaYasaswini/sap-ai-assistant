@@ -145,7 +145,8 @@
         'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
 
     let currentDocumentID = null
-    const BASE_URL = 'http://localhost:4004/odata/v4/assistant'
+    const BASE_URL = window.location.origin + '/odata/v4/assistant'
+    // const BASE_URL = 'http://localhost:4004/odata/v4/assistant'
 
     // Show selected filename
     document.getElementById('pdf-input').addEventListener('change', (e) => {
