@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAP AI Assistant</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: '72', Arial, sans-serif;
+            background: #f5f6f7;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #0070f2;
+            color: white;
+            padding: 16px 24px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        #upload-section {
+            background: white;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #upload-section input[type="file"] { display: none; }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-primary { background: #0070f2; color: white; }
+        .btn-primary:hover { background: #0058c7; }
+        .btn-secondary { background: #e0e0e0; color: #333; }
+
+        #file-label {
+            padding: 8px 16px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #file-name { font-size: 13px; color: #666; }
+        #upload-status { font-size: 13px; color: #0070f2; }
+
+        #chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .message.user {
+            background: #0070f2;
+            color: white;
+            align-self: flex-end;
+        }
+
+        .message.ai {
+            background: white;
+            color: #333;
+            align-self: flex-start;
+            border: 1px solid #e0e0e0;
+        }
+
+        .message.system {
+            background: #fff3cd;
+            color: #856404;
+            align-self: center;
+            font-size: 12px;
+        }
+
+        #input-section {
+            background: white;
+            padding: 16px 24px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 12px;
+        }
+
+        #question-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #question-input:focus { border-color: #0070f2; }
+
+        #send-btn { min-width: 80px; }
+    </style>
+</head>
+<body>
+
+<header>🤖 SAP AI Assistant</header>
+
+<div id="upload-section">
+    <label id="file-label" for="pdf-input">📄 Choose PDF</label>
+    <input type="file" id="pdf-input" accept=".pdf,.txt">
+    <button class="btn btn-primary" onclick="uploadDocument()">Upload</button>
+    <span id="file-name">No file selected</span>
+    <span id="upload-status"></span>
+</div>
+
+<div id="chat-area">
+    <div class="message system">Upload a document to get started, then ask questions about it.</div>
+</div>
+
+<div id="input-section">
+    <input type="text" id="question-input" placeholder="Ask a question about your document..." 
+           onkeypress="if(event.key==='Enter') sendQuestion()">
+    <button class="btn btn-primary" id="send-btn" onclick="sendQuestion()">Send</button>
+</div>
+
+<script>
+    // pdf.js setup
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+
+    let currentDocumentID = null
+    const BASE_URL = 'http://localhost:4004/odata/v4/assistant'
+
+    // Show selected filename
+    document.getElementById('pdf-input').addEventListener('change', (e) => {
+        const file = e.target.files[0]
+        document.getElementById('file-name').textContent = file ? file.name : 'No file selected'
+    })
+
+    async function extractTextFromFile(file) {
+        if (file.type === 'application/pdf') {
+            const arrayBuffer = await file.arrayBuffer()
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+            let text = ''
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i)
+                const content = await page.getTextContent()
+                text += content.items.map(item => item.str).join(' ') + '\n'
+            }
+            return text
+        } else {
+            return await file.text()
+        }
+    }
+
+    async function uploadDocument() {
+        const fileInput = document.getElementById('pdf-input')
+        const file = fileInput.files[0]
+
+        if (!file) {
+            addMessage('system', 'Please select a file first.')
+            return
+        }
+
+        const status = document.getElementById('upload-status')
+        status.textContent = 'Extracting text...'
+
+        const text = await extractTextFromFile(file)
+        status.textContent = 'Uploading...'
+
+        const response = await fetch(`${BASE_URL}/uploadDocument`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: file.name, content: text })
+        })
+
+        const data = await response.json()
+
+        if (data.value) {
+            const idMatch = data.value.match(/ID: ([a-f0-9-]{36})/)
+            if (idMatch) currentDocumentID = idMatch[1]
+            status.textContent = '✅ Ready'
+            addMessage('system', data.value)
+        } else {
+            status.textContent = '❌ Upload failed'
+            addMessage('system', 'Upload failed. Check console.')
+        }
+    }
+
+    async function sendQuestion() {
+        const input = document.getElementById('question-input')
+        const question = input.value.trim()
+
+        if (!question) return
+        if (!currentDocumentID) {
+            addMessage('system', 'Please upload a document first.')
+            return
+        }
+
+        addMessage('user', question)
+        input.value = ''
+
+        const sendBtn = document.getElementById('send-btn')
+        sendBtn.textContent = '...'
+        sendBtn.disabled = true
+
+        const response = await fetch(`${BASE_URL}/askQuestion`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question, documentID: currentDocumentID })
+        })
+
+        const data = await response.json()
+        addMessage('ai', data.value || 'Error getting response.')
+
+        sendBtn.textContent = 'Send'
+        sendBtn.disabled = false
+    }
+
+    function addMessage(type, text) {
+        const chatArea = document.getElementById('chat-area')
+        const div = document.createElement('div')
+        div.className = `message ${type}`
+        div.textContent = text
+        chatArea.appendChild(div)
+        chatArea.scrollTop = chatArea.scrollHeight
+    }
+</script>
+
+</body>
+</html>
